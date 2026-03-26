@@ -1,11 +1,9 @@
-import ApiError from '../../../utils/ApiError'
-type ValidateLoginTrigramType = {trigram:string,password:string}
+import { z } from 'zod'
 
-export const validateLoginTrigram = ({trigram, password}: ValidateLoginTrigramType) => {
-    if(!trigram || !password){
-        console.log("Missing trigram or password.");
-        throw new ApiError(403,'Missing trigram or password.')
-    }
-}
-
-
+export const loginSchema = z.object({
+    body: z.object({
+        trigram: z.string().min(3),
+        password: z.string().min(10,"Password must have atleast 10 characters.")
+    })
+})
+export type LoginBody = z.infer<typeof loginSchema>['body'];
