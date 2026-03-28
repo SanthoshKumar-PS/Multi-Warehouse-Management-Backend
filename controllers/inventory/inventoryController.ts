@@ -89,3 +89,36 @@ export const loginWarehouseTrigram = async(req:Request, res:Response) => {
         
     }
 }
+
+export const getInventoryStock = async(req:AuthRequest, res:Response) => {
+    try {
+        const { selectedWarehouseId } = req.query;
+        console.log("Req query params: ", req.query);
+        if(!selectedWarehouseId){
+            console.log("Warehouse id is missing :", selectedWarehouseId);
+            return res.status(403).json({ message:'Missing warehouseId to fetch.' })
+        }
+        const products = await (prisma as any).warehouseInventory.findMany({
+            where:{
+                warehouseId: Number(selectedWarehouseId)
+            },
+            include:{
+                product:{
+                    select:{
+                        description:true,
+                        brand:true,
+                        family:true,
+                        type:true
+
+                    }
+                }
+            }
+        });
+        return res.status(200).json({ products, message: 'WarehouseInventory fetched successfully.' })
+        
+    } catch (error:any) {
+        console.log('Error occured in getInventoryStock: ', error);
+        return res.status(500).json({ message:'Internal Server Error.' });        
+    }
+}
+
