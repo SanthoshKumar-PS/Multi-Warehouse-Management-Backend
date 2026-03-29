@@ -122,3 +122,92 @@ export const getInventoryStock = async(req:AuthRequest, res:Response) => {
     }
 }
 
+
+export const getInventoryProduct = async(req:AuthRequest, res:Response) => {
+    try {
+        const { selectedWarehouseId, productMn } = req.query;
+        console.log("Req query params: ", req.query);
+        if(!selectedWarehouseId || !productMn){
+            console.log("Warehouse id and productMn are missing :", selectedWarehouseId);
+            return res.status(403).json({ message:'Missing warehouseId and productMn to fetch.' })
+        }
+        const inventoryProduct = await (prisma as any).warehouseInventory.findUnique({
+            where:{
+                warehouseId_productMn:{
+                    warehouseId:Number(selectedWarehouseId),
+                    productMn:productMn as string
+                }
+            }
+        });
+        return res.status(200).json({ inventoryProduct, message: 'WarehouseInventory fetched successfully.' })
+        
+    } catch (error:any) {
+        console.log('Error occured in getInventoryProduct: ', error);
+        return res.status(500).json({ message:'Internal Server Error.' });        
+    }
+}
+
+export const getInventoryProductWithTransactions = async(req:AuthRequest, res:Response) => {
+    try {
+        const { selectedWarehouseId, productMn, page = 1, limit = 10 } = req.query;
+        const pageNo = Number(page);
+        const limitNo = Number(limit);
+        const skip = (pageNo-1)*limitNo;
+        console.log("Req query params: ", req.query);
+        if(!selectedWarehouseId || !productMn){
+            console.log("Warehouse id and productMn are missing :", selectedWarehouseId);
+            return res.status(403).json({ message:'Missing warehouseId and productMn to fetch.' })
+        }
+
+        const inventoryProductPromise = prisma.warehouseInventory.findUnique({
+            where:{
+                warehouseId_productMn:{
+                    warehouseId:Number(selectedWarehouseId),
+                    productMn:productMn as string
+                }
+            },
+            include:{
+                product:true
+            }
+        });
+
+        const whereClause: Prisma.InventoryTransactionWhereInput = {
+            warehouseId:Number(selectedWarehouseId),
+            productMn:productMn as string
+        }
+
+
+        const inventoryTransactionsPromise = prisma.inventoryTransaction.findMany({
+            where:{
+                ...whereClause                
+            },
+            orderBy:{
+                createdAt:'desc',
+            },
+            take:limitNo,
+            skip
+        })
+
+        const totalRowsPromise = prisma.inventoryTransaction.count({
+            where:{
+                ...whereClause
+            }
+        })
+
+        const [inventoryProduct, inventoryTransactions, totalRows] = await Promise.all([
+            inventoryProductPromise,
+            inventoryTransactionsPromise,
+            totalRowsPromise
+        ])
+        return res.status(200).json({
+            inventoryProduct, 
+            inventoryTransactions,
+            totalPages: totalRows===0 ? 1 : Math.ceil(totalRows/limitNo),
+            message: 'WarehouseInventory with transactions fetched successfully.'
+        })
+        
+    } catch (error:any) {
+        console.log('Error occured in getInventoryProductWithTransactions: ', error);
+        return res.status(500).json({ message:'Internal Server Error.' });        
+    }
+}
