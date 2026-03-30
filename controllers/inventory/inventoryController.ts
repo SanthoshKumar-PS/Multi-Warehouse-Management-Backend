@@ -211,3 +211,107 @@ export const getInventoryProductWithTransactions = async(req:AuthRequest, res:Re
         return res.status(500).json({ message:'Internal Server Error.' });        
     }
 }
+
+export const postInventoryTransaction = async(req:AuthRequest, res:Response) => {
+    try {
+        const authUser = req.authUser;
+        const {productMn,warehouseId,type,qty,adjSign,reference} = req.body;
+        console.log("Req body : ",req.body);
+        console.log("Req query params: ", req.query);
+
+        if(!warehouseId || !productMn){
+            console.log("Warehouse id and productMn are missing :", warehouseId);
+            return res.status(403).json({ message:'Missing warehouseId or productMn to fetch data.' })
+        }
+
+        const response = await prisma.$transaction(async (tx)=>{
+            // Lock Rows
+            await tx.$queryRaw`
+            SELECT * FROM WarehouseInventory 
+            WHERE warehouseId = ${warehouseId} AND productMn=${productMn} 
+            FOR UPDATE`
+
+            // Refetch Stock Data
+            const warehouseinventory = await tx.warehouseInventory.findUnique({
+                where:{
+                    warehouseId_productMn:{
+                        warehouseId:Number(warehouseId),
+                        productMn:productMn
+                    }
+                }
+            });
+            // console.log("Reftched stock data: ", warehouseinventory);
+
+            if(!warehouseinventory){
+                throw new Error('Product not found in this warehouse.')
+            }
+
+            const physicalQty = warehouseinventory.physicalQty
+            const reservedQty = warehouseinventory.reservedQty
+
+            const qtyChange = deriveQtyChangeFromTxnType(type,qty, adjSign)
+            
+            const validation = validateInventoryTransaction( {type, qtyChange, physicalQty, reservedQty});
+
+            console.log("Validation output: ", validation);
+
+            if(!validation.isValid){
+                console.log("Validation failed: ",validation.error)
+                throw new Error(validation.error)
+            }
+            console.log("Qty Change: ", qtyChange);
+
+            const { newPhysical, newReserved } = calculateInventoryInputs(type, physicalQty, reservedQty, qtyChange)
+
+            console.log(`newPhysical: ${newPhysical} --- newReserver: ${newReserved}`)
+
+            const updateWarehouseInventory = await tx.warehouseInventory.update({
+                where:{
+                    warehouseId_productMn:{
+                        warehouseId:Number(warehouseId),
+                        productMn:productMn as string
+                    }                    
+                },
+                data:{
+                    physicalQty: newPhysical,
+                    reservedQty: newReserved
+                }
+            });
+
+            const createdTransaction = await tx.inventoryTransaction.create({
+                data:{
+                    warehouseId,
+                    productMn,
+                    qtyChange,
+                    type,
+                    reference,
+                    createdBy:authUser?.trigram ?? null,
+                    physicalBefore:physicalQty,
+                    physicalAfter:newPhysical,
+                    reservedBefore:reservedQty,
+                    reservedAfter:newReserved
+                }
+            })
+
+            // Return After Update Stock
+            return { updateWarehouseInventory, createdTransaction };
+
+        },{
+            maxWait:5000,
+            timeout:20000,
+        })
+
+        // console.log("Transacion response: ", response);
+
+        return res.status(200).json({ 
+            updatedInventoryProduct: response.updateWarehouseInventory,
+            createdTransaction: response.createdTransaction ,
+            message: 'WarehouseInventory with transactions fetched successfully.'
+        })
+        
+    } catch (error:any) {
+        console.log('Error occured in postInventoryTransaction: ', error);
+        return res.status(500).json({ message:'Internal Server Error.' });        
+    }
+}
+
