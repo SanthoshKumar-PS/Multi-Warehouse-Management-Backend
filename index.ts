@@ -3,7 +3,6 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import { PrismaClient } from "@prisma/client";
-import { testHandler } from "./controllers/testing/TestController";
 import { getAllRolesAndPermissions } from "./controllers/testing/RolesandPermissions";
 import { inventoryRouter } from './routes/inventory/inventoryRouter';
 
@@ -53,7 +52,6 @@ app.use(express.json());
 
 app.use("/api/inventory", inventoryRouter);
 
-app.get("/test/webhook", testHandler);
 app.get("/rolesAndPermissions", getAllRolesAndPermissions);
 
 app.get("/check", (req, res) => {
