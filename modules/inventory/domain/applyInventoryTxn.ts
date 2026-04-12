@@ -6,6 +6,7 @@ import { calculateInventoryInputs } from './calculateInventoryInputs'
 
 type ApplyInventoryTxnType = {
     warehouseId: number,
+    warehouseName: string,
     productMn: string,
     type:InventoryTxnType, 
     qty: number,
@@ -15,6 +16,7 @@ type ApplyInventoryTxnType = {
 
 export const applyInventoryTxn = async (tx:Prisma.TransactionClient,inventoryMap: Map<string,WarehouseInventory> , inventoryTransactionsData:Prisma.InventoryTransactionCreateManyInput[] ,{
     warehouseId,
+    warehouseName,
     productMn,
     type,
     qty,
@@ -75,6 +77,7 @@ export const applyInventoryTxn = async (tx:Prisma.TransactionClient,inventoryMap
 
   inventoryTransactionsData.push({
     warehouseId: warehouseId,
+    warehouseName: warehouseName,
     productMn: productMn,
     qtyChange: qtyChange,
     type: type,
