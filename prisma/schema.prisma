@@ -184,6 +184,7 @@ model Product {
   orderDetails  OrderDetails[]
   productPrice  ProductPrice?
   inventory     WarehouseInventory[]
+  purchaseOrderItems PurchaseOrderItem[]
 }
 
 model ProductPrice {
@@ -204,6 +205,7 @@ model Warehouse {
 
   transfersFrom TransferOrder[] @relation("FromWarehouse")
   transfersTo   TransferOrder[] @relation("ToWarehouse")
+  purchaseOrders PurchaseOrder[]
 }
 
 model WarehouseInventory {
@@ -223,6 +225,7 @@ model WarehouseInventory {
 model InventoryTransaction {
   id             Int              @id @default(autoincrement())
   warehouseId    Int
+  warehouseName  String
   productMn      String
   qtyChange      Int
   type           InventoryTxnType
@@ -285,8 +288,72 @@ model TransferItem {
 
   @@index([transferId])
   @@unique([transferId, productMn])
-  @@unique([transferNo, productMn])
 }
+
+model PurchaseOrder {
+  id Int @id @default(autoincrement())
+  poNumber           String @unique
+  warehouseId        Int
+  warehouseName String
+  supplierId         Int
+  supplierName      String
+  status             PurchaseStatusType @default(CREATED)
+
+  orderDate       DateTime @default(now())
+  expectedDate       DateTime
+
+  createdBy   String
+  // receivedBy
+  remarks            String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+  createdByUser User? @relation(fields: [createdBy], references: [trigram])
+
+  items PurchaseOrderItem[]
+}
+
+model PurchaseOrderItem {
+  id Int @id @default(autoincrement())
+  purchaseOrderId Int
+  productMn String
+
+  orderedQty Int
+  receivedQty Int @default(0)        // Important for partial receive
+
+  createdAt DateTime @default(now())
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  product Product @relation(fields: [productMn], references: [mn])
+  @@index([productMn])
+  @@unique([purchaseOrderId,productMn])
+}
+
+
+model Supplier {
+  id Int @id @default(autoincrement())
+  name String
+  contactPerson     String?
+  phone             String?
+  email             String?
+
+  address           String?
+  city              String?
+  state             String?
+  country           String?
+
+  gstNumber         String?
+
+  deletedAt   DateTime?  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  purchaseOrders PurchaseOrder[]
+  @@index([deletedAt])
+}
+
 
 
 model Salesman {
@@ -312,6 +379,7 @@ model User {
   role         Role                   @relation(fields: [roleId], references: [id])
   warehouses   UserWarehouse[]
   transferOrders TransferOrder[]
+  purchaseOrders PurchaseOrder[]
 
   @@index([roleId], map: "User_roleId_fkey")
 }
@@ -494,4 +562,11 @@ enum TransferStatus {
   PARTIALLY_RECEIVED
   COMPLETED
   CANCELLED
+}
+
+enum PurchaseStatusType {
+  CREATED 
+  CANCELLED
+  PARTIALLY_RECEIVED
+  COMPLETED
 }
