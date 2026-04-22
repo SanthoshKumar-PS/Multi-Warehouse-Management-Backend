@@ -288,6 +288,7 @@ model TransferItem {
 
   @@index([transferId])
   @@unique([transferId, productMn])
+  @@unique([transferNo, productMn])
 }
 
 model PurchaseOrder {
