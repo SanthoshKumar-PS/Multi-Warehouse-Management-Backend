@@ -23,6 +23,12 @@ export const GetInventoryProductSchema = z.object({
 }) 
 export type GetInventoryProductType = z.infer<typeof GetInventoryProductSchema>['query'];
 
+export const GetProductAvailabilitySchema = z.object({
+  params: z.object({
+    productMn: z.string().trim().min(2,'Product MN must have any 2 characters.')
+  })
+})
+export type GetProductAvailabilityType = z.infer<typeof GetProductAvailabilitySchema>['params'];
 
 export const GetInventoryProductWithTransactionsSchema = z.object({
   query: z.object({
@@ -43,6 +49,7 @@ export type GetInventoryProductWithTransactionsType = z.infer<typeof GetInventor
 export const PostInventoryTransactionSchema = z.object({
   query: z.object({
     selectedWarehouseId : z.coerce.number().int().positive('Warehouse Id must be positive.'),
+    selectedWarehouseName : z.string().trim().min(1,'Warehouse name is required.')
   }),
   body: z.object({
     productMn : z.string().trim().min(2,'Product MN must have any 2 characters.'),
@@ -55,6 +62,7 @@ export const PostInventoryTransactionSchema = z.object({
   }) 
 }).transform(({query,body}) => ({
         warehouseId: query.selectedWarehouseId,
+        warehouseName: query.selectedWarehouseName,
         productMn:body.productMn,
         type: body.type,
         qty: body.qty,
