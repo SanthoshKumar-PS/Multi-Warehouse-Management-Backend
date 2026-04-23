@@ -105,7 +105,8 @@ export const getPurchaseOrderByNumber = async (req:AuthRequest, res:Response) =>
 
         return res.status(200).json({
             message: "Successfully fetched purchase order.",
-            purchaseOrder: response.purchaseOrder
+            purchaseOrder: response.purchaseOrder,
+            inventoryTransactions: response.inventoryTransactions
         })
         
     } catch (error:any) {

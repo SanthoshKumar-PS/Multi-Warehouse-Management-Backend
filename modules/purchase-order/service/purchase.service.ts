@@ -335,7 +335,25 @@ export const getPurchaseOrderByNumberService = async ({ warehouseId, poNumber } 
         }
     })
 
+    const inventoryTransactions = await prisma.inventoryTransaction.findMany({
+        where:{
+            reference: poNumber
+        },
+        orderBy: [
+            { productMn: 'desc' },
+            { id: 'asc' }
+        ],
+        include: {
+            product: {
+                select: {
+                    description: true
+                }
+            }
+        }
+    })
+
     console.log("purchaseOrder: ",purchaseOrder);
-    return { purchaseOrder }
+    console.log("inventoryTransactions: ",inventoryTransactions);
+    return { purchaseOrder, inventoryTransactions }
 
 }
