@@ -1,5 +1,5 @@
 import prisma from '../../../utils/prisma'
-import { NewPurchaseType, GetPurchaseOrderByNumberType, GetPurchaseOrdersType, ReceivePurchaseItemsType, CancelPurchaseItemsType } from '../validation/purchase.validate'
+import { NewPurchaseType, GetPurchaseOrderByNumberType, GetPurchaseOrdersType, ReceivePurchaseItemsType, CancelPurchaseItemsType, ClosePurchaseItemsType } from '../validation/purchase.validate'
 import getPurchaseDate from '../utils/getPurchaseDate';
 import { getNextFormattedPurchaseNumber } from '../utils/getNextFormattedPurchaseNumber'
 import ApiError from '../../../utils/ApiError';
@@ -161,8 +161,16 @@ export const receivePurchaseOrderService = async ({warehouseId, warehouseName, p
             }
         })
         
-        if(!purchaseOrder || (purchaseOrder.status!=='CREATED' && purchaseOrder.status!=='PARTIALLY_RECEIVED')){
-            throw new ApiError(400,"Invalid purchase order status for receiving.")
+        if (!purchaseOrder) {
+            throw new ApiError(404, "Purchase order not found.");
+        }
+
+        if (purchaseOrder.status === 'CLOSED') {
+            throw new ApiError(400, "Cannot receive items for a closed purchase order.");
+        }
+
+        if (purchaseOrder.status !== 'CREATED' && purchaseOrder.status !== 'PARTIALLY_RECEIVED') {
+            throw new ApiError(400, "Invalid purchase order status for receiving.");
         }
 
         const inventoryTransactionsData: Prisma.InventoryTransactionCreateManyInput[] = [];
@@ -361,6 +369,57 @@ export const cancelPurchaseOrderService = async ({ warehouseId, warehouseName, p
     })
 
     return { purchaseOrder: response.purchaseOrder }
+}
+
+export const closePurchaseOrderService = async ({ warehouseId, warehouseName, poNumber }:ClosePurchaseItemsType) => {
+    const response = await prisma.$transaction(async (tx) => {
+
+        const result = await tx.purchaseOrder.updateMany({
+            where:{
+                poNumber,
+                warehouseId,
+                status: PurchaseStatusType.PARTIALLY_RECEIVED
+            },
+            data:{
+                status: PurchaseStatusType.CLOSED
+            }
+        })
+        
+        if (result.count === 0) {
+            console.log("Invalid status or unauthorized access");
+            throw new ApiError(400, "Invalid purchase order status for closing.");
+        }
+        
+        const updatedPurchaseOrder = await tx.purchaseOrder.findUnique({
+            where: { poNumber },
+            include: { items: true },
+        });
+
+        if (!updatedPurchaseOrder) {
+            throw new ApiError(500, "Failed to fetch updated purchase order.");
+        }
+
+        const inventoryTransactions = await tx.inventoryTransaction.findMany({
+            where:{
+                reference: poNumber
+            },
+            orderBy: [
+                { productMn: 'desc' },
+                { id: 'asc' }
+            ],
+            include: {
+                product: {
+                    select: {
+                        description: true
+                    }
+                }
+            }
+        })
+
+        return { purchaseOrder: updatedPurchaseOrder, inventoryTransactions }
+    })
+
+    return { purchaseOrder: response.purchaseOrder, inventoryTransactions: response.inventoryTransactions }
 }
 
 
