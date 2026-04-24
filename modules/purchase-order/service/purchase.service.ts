@@ -1,5 +1,5 @@
 import prisma from '../../../utils/prisma'
-import { NewPurchaseType, GetPurchaseOrderByNumberType, GetPurchaseOrdersType, ReceiveTransferItemsType } from '../validation/purchase.validate'
+import { NewPurchaseType, GetPurchaseOrderByNumberType, GetPurchaseOrdersType, ReceivePurchaseItemsType, CancelPurchaseItemsType } from '../validation/purchase.validate'
 import getPurchaseDate from '../utils/getPurchaseDate';
 import { getNextFormattedPurchaseNumber } from '../utils/getNextFormattedPurchaseNumber'
 import ApiError from '../../../utils/ApiError';
@@ -150,7 +150,7 @@ export const createNewPurchaseOrderService = async ({poOrderItems, supplierId,ex
 }
 
 
-type receivePurchaseOrderServiceType = ReceiveTransferItemsType & {
+type receivePurchaseOrderServiceType = ReceivePurchaseItemsType & {
     createdBy: string | null
 }
 export const receivePurchaseOrderService = async ({warehouseId, warehouseName, poNumber, receivePurchaseItems, createdBy} : receivePurchaseOrderServiceType) => {
@@ -311,6 +311,58 @@ export const receivePurchaseOrderService = async ({warehouseId, warehouseName, p
 
     return { purchaseOrder: response.purchaseOrder, inventoryTransactions }
 }
+
+
+export const cancelPurchaseOrderService = async ({ warehouseId, warehouseName, poNumber }:CancelPurchaseItemsType) => {
+    const response = await prisma.$transaction(async (tx) => {
+        const purchaseOrder = await tx.purchaseOrder.findUnique({
+            where:{
+                poNumber
+            }
+        })
+
+        if(!purchaseOrder || purchaseOrder.status!=='CREATED'){
+            console.log("Purchase order not found or not in status Created")
+            throw new ApiError(400, 'Invalid purchase order status for cancelling.')
+        }
+
+        if(purchaseOrder.warehouseId !== warehouseId){
+            console.log("Unauthorized warehouse access.");
+            throw new ApiError(403, 'Unauthorized warehouse access.');
+        }
+
+        const items = await tx.purchaseOrderItem.findMany({
+            where:{
+                purchaseOrderId: purchaseOrder.id
+            }
+        })
+
+        const hasReceived = items.some(item => item.receivedQty>0)
+
+        if(hasReceived){
+            console.log("Cannot cancel purchase order with received items.");
+            throw new ApiError(400, 'Cannot cancel purchase order with received items.');
+        }
+
+        const updatedPurchaseOrder = await tx.purchaseOrder.update({
+            where:{
+                poNumber,
+                status: PurchaseStatusType.CREATED
+            },
+            data:{
+                status: PurchaseStatusType.CANCELLED
+            },
+            include:{
+                items: true
+            }
+        })
+
+        return { purchaseOrder: updatedPurchaseOrder }
+    })
+
+    return { purchaseOrder: response.purchaseOrder }
+}
+
 
 export const getPurchaseOrderByNumberService = async ({ warehouseId, poNumber } : GetPurchaseOrderByNumberType) => {
     const purchaseOrder = await prisma.purchaseOrder.findUnique({

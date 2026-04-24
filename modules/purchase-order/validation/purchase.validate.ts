@@ -58,7 +58,7 @@ export const ReceiveItemSchema = z.object({
 })
 export type ReceiveItemType = z.infer<typeof ReceiveItemSchema>;
 
-export const ReceiveTransferItemsSchema = z.object({
+export const ReceivePurchaseItemsSchema = z.object({
     body: z.object({
         poNumber: z.string().trim().min(1),
         receivePurchaseItems: z.array(ReceiveItemSchema).min(1, "At least one receive item is required.")
@@ -73,8 +73,23 @@ export const ReceiveTransferItemsSchema = z.object({
     poNumber: body.poNumber,
     receivePurchaseItems: body.receivePurchaseItems
 }))
-export type ReceiveTransferItemsType = z.infer<typeof ReceiveTransferItemsSchema>;
+export type ReceivePurchaseItemsType = z.infer<typeof ReceivePurchaseItemsSchema>;
 
+
+export const CancelPurchaseItemsSchema = z.object({
+    query: z.object({
+        selectedWarehouseId: z.coerce.number().positive(),
+        selectedWarehouseName: z.string().trim()
+    }),
+    params: z.object({
+        poNumber: z.string().trim().min(1)
+    })
+}).transform(({query, params}) => ({
+    warehouseId: query.selectedWarehouseId,
+    warehouseName: query.selectedWarehouseName,
+    poNumber: params.poNumber
+}))
+export type CancelPurchaseItemsType = z.infer<typeof CancelPurchaseItemsSchema>;
 
 export const GetPurchaseOrderByNumberSchema = z.object({
     query: z.object({
