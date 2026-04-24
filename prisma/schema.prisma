@@ -570,4 +570,5 @@ enum PurchaseStatusType {
   CANCELLED
   PARTIALLY_RECEIVED
   COMPLETED
+  CLOSED
 }
