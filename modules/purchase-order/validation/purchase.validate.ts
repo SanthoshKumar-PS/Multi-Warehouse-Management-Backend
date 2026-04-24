@@ -91,6 +91,21 @@ export const CancelPurchaseItemsSchema = z.object({
 }))
 export type CancelPurchaseItemsType = z.infer<typeof CancelPurchaseItemsSchema>;
 
+export const ClosePurchaseItemsSchema = z.object({
+    query: z.object({
+        selectedWarehouseId: z.coerce.number().positive(),
+        selectedWarehouseName: z.string().trim()
+    }),
+    params: z.object({
+        poNumber: z.string().trim().min(1)
+    })
+}).transform(({query, params}) => ({
+    warehouseId: query.selectedWarehouseId,
+    warehouseName: query.selectedWarehouseName,
+    poNumber: params.poNumber
+}))
+export type ClosePurchaseItemsType = z.infer<typeof CancelPurchaseItemsSchema>;
+
 export const GetPurchaseOrderByNumberSchema = z.object({
     query: z.object({
         selectedWarehouseId: z.coerce.number().positive()

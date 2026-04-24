@@ -2,8 +2,8 @@ import { AuthRequest } from "../../../utils/AuthRequest";
 import {Response} from 'express'
 import prisma from "../../../utils/prisma";
 import { validateRequest } from "../../../utils/validateRequest";
-import { GetPurchaseOrdersSchema, GetPurchaseOrderByNumberSchema, NewPurchaseSchema, ReceivePurchaseItemsSchema, CancelPurchaseItemsSchema } from "../validation/purchase.validate"
-import { getPurchaseOrdersService, createNewPurchaseOrderService, getPurchaseOrderByNumberService, receivePurchaseOrderService, cancelPurchaseOrderService } from "../service/purchase.service"
+import { GetPurchaseOrdersSchema, GetPurchaseOrderByNumberSchema, NewPurchaseSchema, ReceivePurchaseItemsSchema, CancelPurchaseItemsSchema, ClosePurchaseItemsSchema } from "../validation/purchase.validate"
+import { getPurchaseOrdersService, createNewPurchaseOrderService, getPurchaseOrderByNumberService, receivePurchaseOrderService, cancelPurchaseOrderService, closePurchaseOrderService } from "../service/purchase.service"
 
 export const getPurchaseOrders = async (req: AuthRequest, res: Response) => {
     try {
@@ -109,9 +109,7 @@ export const cancelPurchaseOrder = async (req:AuthRequest, res:Response) => {
             warehouseId,
             warehouseName,
             poNumber
-        })
-
-        
+        })        
 
         return res.status(200).json({
             purchaseOrder: response.purchaseOrder,
@@ -123,6 +121,39 @@ export const cancelPurchaseOrder = async (req:AuthRequest, res:Response) => {
         return res.status(error.statusCode || 500).json({ message: error.message || 'Internal Server Error.' });         
     }
 
+}
+
+export const closePurchaseOrder = async (req: AuthRequest, res: Response) => {
+    try {
+        const authUser = req.authUser;
+        const createdBy = authUser?.trigram ?? null;
+
+        console.log("Req query: ", req.query);
+        console.log("Req params: ", req.params);
+
+        const validated = validateRequest(ClosePurchaseItemsSchema,{
+            query: req.query,
+            params: req.params
+        })
+
+        const { warehouseId, warehouseName, poNumber } = validated;
+
+        const response = await closePurchaseOrderService({
+            warehouseId,
+            warehouseName,
+            poNumber
+        })
+
+        return res.status(200).json({
+            purchaseOrder: response.purchaseOrder,
+            inventoryTransactions: response.inventoryTransactions,
+            message:"Purchase Order Cancelled Successfully."
+        })
+        
+    } catch (error:any) {
+        console.log("Error occured in closePurchaseOrder: ", error);
+        return res.status(error.statusCode || 500).json({ message: error.message || 'Internal Server Error.' });
+    }
 }
 
 export const getPurchaseOrderByNumber = async (req:AuthRequest, res:Response) => {

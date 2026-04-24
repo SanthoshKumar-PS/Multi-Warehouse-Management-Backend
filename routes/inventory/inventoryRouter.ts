@@ -4,7 +4,7 @@ import { authenticate } from '../../middleware/authenticate';
 import { authorize } from '../../middleware/authorize';
 import { authorizeWarehouse } from '../../middleware/authorizeWarehouseAccess'
 import { createNewTransfer, dispatchTransferItems, getTransfers, getTransferByTransferNo, receiveTransferItems, cancelTransferItems } from '../../modules/transfer/controller/transfer.controller'
-import { getPurchaseOrders, createPurchaseOrder, receivePurchaseOrder, getPurchaseOrderByNumber, getSupplierList, getProductForPurchase } from '../../modules/purchase-order/controller/purchase.controller'
+import { getPurchaseOrders, createPurchaseOrder, receivePurchaseOrder, cancelPurchaseOrder, getPurchaseOrderByNumber, getSupplierList, getProductForPurchase, closePurchaseOrder } from '../../modules/purchase-order/controller/purchase.controller'
 
 
 export const inventoryRouter = express.Router();
@@ -45,6 +45,10 @@ inventoryRouter.get('/purchase-orders', authenticate, authorize(['view_warehouse
 inventoryRouter.post('/purchase-orders/new', authenticate, authorize(['manage_warehouse']), authorizeWarehouse('MANAGE'), createPurchaseOrder)
 
 inventoryRouter.patch('/purchase-orders/receive/:poNumber', authenticate, authorize(['manage_warehouse']), authorizeWarehouse('MANAGE'), receivePurchaseOrder)
+
+inventoryRouter.patch('/purchase-orders/cancel/:poNumber', authenticate, authorize(['manage_warehouse']), authorizeWarehouse('MANAGE'), cancelPurchaseOrder)
+
+inventoryRouter.patch('/purchase-orders/close/:poNumber', authenticate, authorize(['manage_warehouse']), authorizeWarehouse('MANAGE'), closePurchaseOrder)
 
 inventoryRouter.get('/purchase-orders/poNumber/:poNumber', authenticate, authorize(['view_warehouse']), authorizeWarehouse('VIEW'), getPurchaseOrderByNumber )
 
